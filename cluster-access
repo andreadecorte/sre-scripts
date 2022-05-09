@@ -29,6 +29,7 @@ _cluster_access_route_cleanup() {
 }
 
 trap _cluster_access_route_cleanup INT
+trap _cluster_access_route_cleanup ERR
 
 set -x
 sudo route add -net "$PRIVATE_CIDR" -interface en0
