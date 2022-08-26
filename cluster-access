@@ -2,10 +2,10 @@
 set -euo pipefail
 
 # Installation: Add this script in your path (or create a link in your path)
-# Pre-requesite:
+# Pre-requisite:
 #   `brew install sshuttle`
 # Nice to have (avoids having to enter your password):
-#   shuttle --sudoers
+#   sshuttle --sudoers
 #   sudo sh -c "echo '$USER ALL=NOPASSWD: /sbin/route' >> /private/etc/sudoers.d/sshuttle_auto"
 # Usage: cluster-access [-d] "bastion-address"
 # What it does:
@@ -14,7 +14,7 @@ set -euo pipefail
 #   - cleanup routes on SIGINT (CTRL-C) to stop sshuttle
 #   - -d flag activates dns forwarding to the same address
 
-PRIVATE_CIDR="10.10.0.0/16"
+PRIVATE_CIDRS="10.10.0.0/16 10.164.0.0/16 10.200.0.0/16 10.201.0.0/16"
 
 if [[ "$OSTYPE" != "darwin"* ]]; then
     echo "This workaround is needed only on MacOS!"
@@ -32,18 +32,22 @@ done
 
 # https://github.com/sshuttle/sshuttle/issues/538
 _cluster_access_route_cleanup() {
-    echo "Cleaning up the route!"
+    echo "Cleaning up the routes!"
     set -x
-    sudo route delete -net "$PRIVATE_CIDR" -interface en0
-    set +x
+    for cidr in ${PRIVATE_CIDRS} ; do
+        sudo route delete -net "$cidr" -interface en0
+        set +x
+    done
 }
 
 trap _cluster_access_route_cleanup INT
 trap _cluster_access_route_cleanup ERR
 
-set -x
-sudo route add -net "$PRIVATE_CIDR" -interface en0
-set +x
+for cidr in ${PRIVATE_CIDRS} ; do
+    set -x
+    sudo route add -net "$cidr" -interface en0
+    set +x
+done
 
-echo "Proxying $PRIVATE_CIDR through $1..."
-sshuttle ${dns_forwarding} -r "$1" -x "$1" ${PRIVATE_CIDR}
+echo "Proxying $PRIVATE_CIDRS through $1..."
+sshuttle ${dns_forwarding} -r "$1" -x "$1" ${PRIVATE_CIDRS}
